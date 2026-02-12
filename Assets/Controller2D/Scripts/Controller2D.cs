@@ -15,13 +15,18 @@ namespace net.fiveotwo.characterController
         private Vector2 Position => transform.position + _colliderOffset;
 
         [SerializeField]
-        [Range(0.01f, 1f)]
+        [Range(0.01f, 0.5f)]
         protected float skinWidth = 0.01f;
+        [SerializeField]
+        [Range(0.1f, 2f)]
+        protected float oneWayThresholdCheck = 0.5f;
         [SerializeField]
         [Range(0.001f, 0.5f)]
         protected float minimumMoveDistance = 0.001f;
         [SerializeField]
         protected LayerMask solidMask;
+        [SerializeField]
+        protected LayerMask oneWayMask;
         [SerializeField]
         protected bool manageSlopes;
         [SerializeField]
@@ -39,6 +44,8 @@ namespace net.fiveotwo.characterController
         private Vector2 _velocity;
         private Vector2 _currentNormal;
         private RaycastHit2D[] _hits = new RaycastHit2D[1];
+        private bool _ignoreOneWayPlatforms;
+        private float _lastVerticalPoint;
 
         protected void Awake()
         {
@@ -79,12 +86,24 @@ namespace net.fiveotwo.characterController
             return value + skinWidth;
         }
 
-        private RaycastHit2D? VerticalCast(float length, Bounds boundingBox)
+        private RaycastHit2D? VerticalCast(float length, Bounds boundingBox, bool ignoreOneWayPlatforms = false)
         {
             float direction = Mathf.Sign(length);
             float castLength = CastLength(length);
+            LayerMask currentMask;
+            if (ignoreOneWayPlatforms) // changes ternary to solve CS0172: Type of conditional expression cannot be determined because 'LayerMask' and 'int' implicitly convert to one another
+            {
+                currentMask = solidMask;
+            }
+            else {
+                currentMask = solidMask + oneWayMask;
+            }
+            Vector2 size = boundingBox.size;
+            size.y *= skinWidth;
+            float adjustedPosition = boundingBox.extents.y - skinWidth * 2f;
+            Vector2 position = new Vector2(0, (adjustedPosition * direction) + skinWidth * direction);
 
-            return Cast(Position + new Vector2(0, skinWidth * direction), boundingBox.size, Vector2.up * direction, castLength, solidMask);
+            return Cast(Position + position, size, Vector2.up * direction, castLength, currentMask);
         }
 
         private void VerticalCollision(ref Vector3 deltaStep, Bounds boundingBox)
@@ -96,7 +115,7 @@ namespace net.fiveotwo.characterController
             }
 
             float direction = Mathf.Sign(deltaStep.y);
-            RaycastHit2D? hit = VerticalCast(deltaStep.y, boundingBox);
+            RaycastHit2D? hit = VerticalCast(deltaStep.y, boundingBox, _ignoreOneWayPlatforms || direction > 0f);
             if (hit.HasValue)
             {
                 float distance =  hit.Value.distance - skinWidth;
@@ -127,7 +146,12 @@ namespace net.fiveotwo.characterController
             float direction = Mathf.Sign(deltaStep.x);
             float castLength = CastLength(deltaStep.x);
 
-            RaycastHit2D? hit = Cast(Position + new Vector2(skinWidth * direction, 0), boundingBox.size, Vector2.right * direction, castLength, solidMask);
+            Vector2 size = boundingBox.size;
+            size.x *= skinWidth;
+            float adjustedPosition = boundingBox.extents.x - skinWidth * 2f;
+            Vector2 position = new Vector2((adjustedPosition * direction) + skinWidth * direction, 0);
+
+            RaycastHit2D? hit = Cast(Position + position, size, Vector2.right * direction, castLength, solidMask);
 
             if (hit.HasValue)
             {
@@ -175,7 +199,7 @@ namespace net.fiveotwo.characterController
             float directionX = Mathf.Sign(deltaStep.x);
             if (manageSlopes)
             {
-                RaycastHit2D? hit = VerticalCast(-Mathf.Infinity, _boundingBox);
+                RaycastHit2D? hit = VerticalCast(-Mathf.Infinity, _boundingBox, _ignoreOneWayPlatforms);
 
                 if (hit.HasValue)
                 {
@@ -233,11 +257,35 @@ namespace net.fiveotwo.characterController
             {
                 _collisionState.Log();
             }
+
+            if (_ignoreOneWayPlatforms)
+            {
+                if (Mathf.Abs(_lastVerticalPoint - transform.position.y) <= oneWayThresholdCheck)
+                {
+                    return;
+                }
+                _ignoreOneWayPlatforms = false;
+            }
         }
 
         public CollisionState CollisionState()
         {
             return _collisionState;
+        }
+
+        public void IgnoreOneWayPlatforms()
+        {
+            if (_ignoreOneWayPlatforms)
+            {
+                return;
+            }
+            _ignoreOneWayPlatforms = true;
+            _lastVerticalPoint = transform.position.y;
+        }
+
+        public void RestoreOneWayPlatforms()
+        {
+            _ignoreOneWayPlatforms = false;
         }
 
         public void UpdateCollisionBoundaries()
