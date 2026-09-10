@@ -43,6 +43,7 @@ namespace net.fiveotwo.characterController
         private Bounds _boundingBox;
         private Vector2 _velocity;
         private Vector2 _currentNormal;
+        private float _currentAngle;
         private RaycastHit2D[] _hits = new RaycastHit2D[1];
         private bool _ignoreOneWayPlatforms;
         private float _lastVerticalPoint;
@@ -149,7 +150,10 @@ namespace net.fiveotwo.characterController
 
             Vector2 size = boundingBox.size;
             size.x *= skinWidth;
-            size.y -= skinWidth * 4f;
+            if (manageSlopes && _currentAngle > 0) // we reduce the size of the collision box only if player can move over slopes
+            {
+                size.y -= skinWidth * 4f;
+            }
             float adjustedPosition = boundingBox.extents.x - skinWidth * 2f;
             Vector2 position = new Vector2((adjustedPosition * direction) + skinWidth * direction, 0);
 
@@ -162,10 +166,10 @@ namespace net.fiveotwo.characterController
 
                 if (manageSlopes)
                 {
-                    float angle = Vector2.Angle(hit.Value.normal, Vector3.up);
-                    if (angle <= maxSlopeAngle)
+                    _currentAngle = Vector2.Angle(hit.Value.normal, Vector3.up);
+                    if (_currentAngle <= maxSlopeAngle)
                     {
-                        Climb(ref deltaStep, angle);
+                        Climb(ref deltaStep, _currentAngle);
                         _currentNormal = hit.Value.normal;
 
                         return;
