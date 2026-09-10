@@ -148,6 +148,7 @@ namespace net.fiveotwo.characterController
 
             Vector2 size = boundingBox.size;
             size.x *= skinWidth;
+            size.y -= skinWidth * 4f;
             float adjustedPosition = boundingBox.extents.x - skinWidth * 2f;
             Vector2 position = new Vector2((adjustedPosition * direction) + skinWidth * direction, 0);
 
@@ -155,16 +156,22 @@ namespace net.fiveotwo.characterController
 
             if (hit.HasValue)
             {
+                float distance = hit.Value.distance - skinWidth;
+                float compensatedDistance = distance * direction;
+
                 if (manageSlopes)
                 {
                     float angle = Vector2.Angle(hit.Value.normal, Vector3.up);
                     if (angle <= maxSlopeAngle)
                     {
+                        //deltaStep.x -= compensatedDistance;
                         Climb(ref deltaStep, angle);
+                        //deltaStep.x += compensatedDistance;
+                        _currentNormal = hit.Value.normal;
+
+                        return; 
                     }
                 }
-                float distance = hit.Value.distance - skinWidth;
-                float compensatedDistance = distance * direction;
 
                 deltaStep.x = compensatedDistance;
                 _currentNormal = hit.Value.normal;
