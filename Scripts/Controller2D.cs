@@ -95,7 +95,8 @@ namespace net.fiveotwo.characterController
             {
                 currentMask = solidMask;
             }
-            else {
+            else
+            {
                 currentMask = solidMask + oneWayMask;
             }
             Vector2 size = boundingBox.size;
@@ -118,7 +119,7 @@ namespace net.fiveotwo.characterController
             RaycastHit2D? hit = VerticalCast(deltaStep.y, boundingBox, _ignoreOneWayPlatforms || direction > 0f);
             if (hit.HasValue)
             {
-                float distance =  hit.Value.distance - skinWidth;
+                float distance = hit.Value.distance - skinWidth;
                 float compensatedDistance = distance * direction;
 
                 if (_collisionState.IsAscendingSlope)
@@ -164,12 +165,10 @@ namespace net.fiveotwo.characterController
                     float angle = Vector2.Angle(hit.Value.normal, Vector3.up);
                     if (angle <= maxSlopeAngle)
                     {
-                        //deltaStep.x -= compensatedDistance;
                         Climb(ref deltaStep, angle);
-                        //deltaStep.x += compensatedDistance;
                         _currentNormal = hit.Value.normal;
 
-                        return; 
+                        return;
                     }
                 }
 
