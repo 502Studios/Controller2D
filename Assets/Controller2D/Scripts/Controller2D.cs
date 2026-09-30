@@ -32,6 +32,12 @@ namespace net.fiveotwo.characterController
         [SerializeField]
         [Range(10f, 90f)]
         protected float maxSlopeAngle = 45f;
+        [Tooltip("Subdivides the deltaStep into small steps for more accurate movement")]
+        [SerializeField]
+        protected bool useSubSteps;
+        [SerializeField]
+        [Range(1, 10)]
+        protected int subStepLimit = 4;
         [SerializeField]
         protected bool logCollisions;
 
@@ -209,7 +215,7 @@ namespace net.fiveotwo.characterController
             float directionX = Mathf.Sign(deltaStep.x);
             if (manageSlopes)
             {
-                RaycastHit2D? hit = VerticalCast(-Mathf.Infinity, _boundingBox, _ignoreOneWayPlatforms);
+                RaycastHit2D? hit = VerticalCast(-1f, _boundingBox, _ignoreOneWayPlatforms);
 
                 if (hit.HasValue)
                 {
@@ -230,8 +236,35 @@ namespace net.fiveotwo.characterController
 
         public void Move(Vector3 deltaStep)
         {
+            if (!useSubSteps)
+            {
+                InternalMove(deltaStep);
+                return;
+            }
+            float maxStepSize = skinWidth * 2f;
+            float totalDistance = deltaStep.magnitude;
+
+            if (totalDistance > maxStepSize)
+            {
+                int iterations = Mathf.Min(Mathf.CeilToInt(totalDistance / maxStepSize), subStepLimit);
+                Vector3 subStep = deltaStep / iterations;
+
+                for (int i = 0; i < iterations; i++)
+                {
+                    InternalMove(subStep);
+                }
+            }
+            else
+            {
+                InternalMove(deltaStep);
+            }
+        }
+
+        private void InternalMove(Vector3 deltaStep)
+        {
             _collisionState.Reset();
             _currentNormal = Vector2.zero;
+            _currentAngle = 0f;
             _velocity = deltaStep;
 
             if (deltaStep.y < 0)
